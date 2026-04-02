@@ -25,21 +25,54 @@ export default function TrendingPage() {
   const [chain, setChain] = useState("xlayer");
   const [error, setError] = useState<string | null>(null);
 
+  const [scanningCount, setScanningCount] = useState(0);
+
+  // Load tokens fast, then scan each for risk scores progressively
   const fetchTrending = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setTokens([]);
     try {
       const res = await fetch(`/api/trending?chain=${chain}`);
       const data = await res.json();
       if (data.error) {
         setError(data.error);
-      } else {
-        setTokens(data.tokens ?? []);
+        return;
       }
+      const allTokens: TrendingToken[] = data.tokens ?? [];
+      setTokens(allTokens);
+      setLoading(false);
+
+      // Progressively scan each token for risk scores (3 at a time)
+      const BATCH_SIZE = 3;
+      for (let i = 0; i < allTokens.length; i += BATCH_SIZE) {
+        const batch = allTokens.slice(i, i + BATCH_SIZE);
+        setScanningCount(i + batch.length);
+        await Promise.all(
+          batch.map(async (t) => {
+            if (!t.tokenContractAddress) return;
+            try {
+              const scanRes = await fetch(`/api/scan?address=${t.tokenContractAddress}&chain=${chain}`);
+              const report = await scanRes.json();
+              if (!report.error) {
+                setTokens((prev) =>
+                  prev.map((tok) =>
+                    tok.tokenContractAddress === t.tokenContractAddress
+                      ? { ...tok, riskScore: report.overallScore, riskLevel: report.level, riskSummary: report.summary }
+                      : tok
+                  )
+                );
+              }
+            } catch {}
+          })
+        );
+      }
+      setScanningCount(0);
     } catch {
       setError("Failed to fetch trending tokens");
     } finally {
       setLoading(false);
+      setScanningCount(0);
     }
   }, [chain]);
 
@@ -116,7 +149,7 @@ export default function TrendingPage() {
               disabled={loading}
               className="px-4 py-2 text-sm font-medium text-white bg-[var(--foreground)] rounded-lg hover:bg-[#1e293b] disabled:opacity-40 transition-colors"
             >
-              {loading ? "Loading..." : "Refresh"}
+              {loading ? "Loading..." : scanningCount > 0 ? `Scanning ${scanningCount}/${tokens.length}...` : "Refresh"}
             </button>
           </div>
         </div>

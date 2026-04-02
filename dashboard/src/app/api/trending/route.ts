@@ -6,7 +6,6 @@ import path from "node:path";
 
 const execFileAsync = promisify(execFile);
 const ONCHAINOS = path.join(os.homedir(), ".local/bin/onchainos");
-const PROJECT_ROOT = path.resolve(process.cwd(), "..");
 
 export async function GET(req: NextRequest) {
   const chain = req.nextUrl.searchParams.get("chain") || "xlayer";
@@ -14,7 +13,6 @@ export async function GET(req: NextRequest) {
   const timeFrame = req.nextUrl.searchParams.get("timeFrame") || "4"; // 4=24h
 
   try {
-    // Get hot tokens
     const { stdout } = await execFileAsync(
       ONCHAINOS,
       ["token", "hot-tokens", "--chain", chain, "--rank-by", rankBy, "--time-frame", timeFrame],
@@ -22,35 +20,28 @@ export async function GET(req: NextRequest) {
     );
 
     const raw = JSON.parse(stdout.trim());
-    const tokens = raw?.data ?? [];
+    const tokens = (raw?.data ?? []).slice(0, 20);
 
-    // Run quick scans on top 8 tokens in parallel
-    const scanned = await Promise.all(
-      tokens.slice(0, 8).map(async (t: any) => {
-        try {
-          const { stdout: scanOut } = await execFileAsync(
-            "npx",
-            ["tsx", path.join(PROJECT_ROOT, "src/index.ts"), "scan", t.tokenContractAddress, "--chain", chain, "--json"],
-            { timeout: 120_000, maxBuffer: 10 * 1024 * 1024, cwd: PROJECT_ROOT, env: { ...process.env, NO_COLOR: "1" } }
-          );
-          const report = JSON.parse(scanOut.trim());
-          return { ...t, riskScore: report.overallScore, riskLevel: report.level, riskSummary: report.summary };
-        } catch (err: unknown) {
-          const e = err as { stdout?: string };
-          if (e.stdout) {
-            try {
-              const report = JSON.parse(e.stdout.trim());
-              return { ...t, riskScore: report.overallScore, riskLevel: report.level, riskSummary: report.summary };
-            } catch {}
-          }
-          return { ...t, riskScore: null, riskLevel: "UNKNOWN", riskSummary: "Scan pending" };
-        }
-      })
-    );
-
-    return NextResponse.json({ tokens: scanned });
+    // Return all tokens immediately — risk scores loaded progressively by frontend
+    return NextResponse.json({
+      tokens: tokens.map((t: any) => ({
+        ...t,
+        riskScore: null,
+        riskLevel: "UNKNOWN",
+        riskSummary: "",
+      })),
+    });
   } catch (err: unknown) {
-    const e = err as { message?: string };
+    const e = err as { message?: string; stdout?: string };
+    if (e.stdout) {
+      try {
+        const raw = JSON.parse(e.stdout.trim());
+        const tokens = (raw?.data ?? []).slice(0, 20);
+        return NextResponse.json({
+          tokens: tokens.map((t: any) => ({ ...t, riskScore: null, riskLevel: "UNKNOWN", riskSummary: "" })),
+        });
+      } catch {}
+    }
     return NextResponse.json({ error: "Failed to fetch trending", details: e.message }, { status: 500 });
   }
 }
