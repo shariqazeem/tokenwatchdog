@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { RiskGauge } from "./components/RiskGauge";
 import { FactorCard } from "./components/FactorCard";
 import { ScanHistory } from "./components/ScanHistory";
+import { Nav } from "./components/Nav";
 
 interface RiskFactor {
   name: string;
@@ -77,10 +78,7 @@ export default function Home() {
               <p className="text-xs text-[var(--muted-foreground)]">Rug pull protection for X Layer</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
-            <span className="inline-block w-2 h-2 rounded-full bg-[var(--success)]" />
-            OnchainOS Connected
-          </div>
+          <Nav />
         </div>
       </header>
 

@@ -98,6 +98,19 @@ export interface QuoteResult {
   raw?: unknown;
 }
 
+// ── Uniswap Analysis ──
+
+export interface UniswapAnalysisResult {
+  hasUniswapPool: boolean;
+  poolCount: number;
+  totalLiquidityUsd: number;
+  totalVolume24h: number;
+  bestVersion: string;        // "v2" | "v3" | "v4" | "none"
+  quoteUsesUniswapRouting: boolean;
+  riskScore: number;          // 0-100
+  riskDetail: string;
+}
+
 // ── Composite Risk Score ──
 
 export type RiskLevel = "SAFE" | "CAUTION" | "WARNING" | "DANGER" | "CRITICAL";
@@ -128,6 +141,7 @@ export interface RiskReport {
     clusterOverview?: ClusterOverview;
     holders?: TokenHolder[];
     quote?: QuoteResult;
+    uniswap?: UniswapAnalysisResult;
   };
 }
 

@@ -10,21 +10,23 @@ import type {
   ClusterOverview,
   TokenHolder,
   QuoteResult,
+  UniswapAnalysisResult,
   TokenQuery,
 } from "../utils/types.js";
 
 // ── Risk Factor Weights (must sum to 1.0) ──
 
 const WEIGHTS = {
-  honeypot:           0.20,  // Is it a honeypot? Instant kill.
-  taxRate:            0.10,  // Hidden buy/sell taxes
-  holderConcentration:0.15,  // Top wallets own too much
-  devReputation:      0.15,  // Deployer rug history
-  liquidityDepth:     0.10,  // Can you actually sell?
-  priceManipulation:  0.10,  // Wash trading, volume anomalies
-  bundleDetection:    0.10,  // Coordinated launch buying
+  honeypot:           0.18,  // Is it a honeypot? Instant kill.
+  taxRate:            0.09,  // Hidden buy/sell taxes
+  holderConcentration:0.13,  // Top wallets own too much
+  devReputation:      0.13,  // Deployer rug history
+  liquidityDepth:     0.09,  // Can you actually sell?
+  priceManipulation:  0.09,  // Wash trading, volume anomalies
+  bundleDetection:    0.09,  // Coordinated launch buying
   communityVerified:  0.05,  // Listed on major exchanges?
   clusterRisk:        0.05,  // Holder cluster concentration
+  uniswapPresence:    0.10,  // Uniswap pool presence & liquidity depth
 } as const;
 
 // ── Individual Scorers (each returns 0-100, higher = more dangerous) ──
@@ -370,6 +372,24 @@ function scoreClusterRisk(cluster: ClusterOverview | undefined): RiskFactor {
   };
 }
 
+function scoreUniswapPresence(uniswap: UniswapAnalysisResult | undefined): RiskFactor {
+  if (!uniswap) {
+    return {
+      name: "Uniswap Presence",
+      score: 30,
+      weight: WEIGHTS.uniswapPresence,
+      detail: "Uniswap analysis unavailable — could not verify DEX presence",
+    };
+  }
+
+  return {
+    name: "Uniswap Presence",
+    score: uniswap.riskScore,
+    weight: WEIGHTS.uniswapPresence,
+    detail: uniswap.riskDetail,
+  };
+}
+
 // ── Level Mapping ──
 
 function riskLevel(score: number): RiskLevel {
@@ -431,6 +451,7 @@ export function computeRiskScore(input: {
   clusterOverview?: ClusterOverview | null;
   holders?: TokenHolder[];
   quote?: QuoteResult | null;
+  uniswap?: UniswapAnalysisResult | null;
 }): RiskReport {
   const factors: RiskFactor[] = [
     scoreHoneypot(input.security, input.quote ?? undefined),
@@ -442,6 +463,7 @@ export function computeRiskScore(input: {
     scoreBundleDetection(input.bundleInfo ?? undefined, input.advancedInfo ?? undefined),
     scoreCommunityVerified(input.advancedInfo ?? undefined),
     scoreClusterRisk(input.clusterOverview ?? undefined),
+    scoreUniswapPresence(input.uniswap ?? undefined),
   ];
 
   // Weighted average
@@ -474,6 +496,7 @@ export function computeRiskScore(input: {
       clusterOverview: input.clusterOverview ?? undefined,
       holders: input.holders,
       quote: input.quote ?? undefined,
+      uniswap: input.uniswap ?? undefined,
     },
   };
 }

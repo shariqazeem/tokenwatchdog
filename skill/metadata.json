@@ -1,0 +1,30 @@
+{
+  "name": "token-watchdog",
+  "description": "Pre-trade safety layer for AI agents — 9-dimensional composite risk analysis on any token before buying. Use when: checking if a token is safe, analyzing token risk, scanning for rug pulls, safe-buying tokens, finding safe trending tokens. Triggers: 'is this token safe to buy', 'check token risk', 'rug pull check', 'scan token safety', 'safe buy', 'watch trending tokens', 'token risk score', 'should I buy this token', 'pre-trade safety check'. Composes okx-security, okx-dex-trenches, okx-dex-token, okx-dex-market, okx-dex-swap, okx-dex-signal.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "author": "tokenwatchdog",
+  "homepage": "https://github.com/user/tokenwatchdog",
+  "category": ["Skill Arena"],
+  "chain": "X Layer (196)",
+  "prerequisites": [
+    "onchainos CLI binary (https://github.com/okx/onchainos-skills)",
+    "Node.js 18+",
+    "OKX OnchainOS API key (https://web3.okx.com/onchain-os/dev-portal)"
+  ],
+  "composedSkills": [
+    "okx-security",
+    "okx-dex-trenches",
+    "okx-dex-token",
+    "okx-dex-market",
+    "okx-dex-swap",
+    "okx-dex-signal"
+  ],
+  "commands": [
+    "token-watchdog scan",
+    "token-watchdog search",
+    "token-watchdog safe-buy",
+    "token-watchdog watch"
+  ],
+  "install": "sh skill/install.sh"
+}
