@@ -154,7 +154,7 @@ export default function SignalsPage() {
               </thead>
               <tbody>
                 {trades.map((trade, i) => (
-                  <tr key={`${trade.txHash || i}`} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--muted)] transition-colors">
+                  <tr key={`${trade.txHash}-${i}`} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--muted)] transition-colors">
                     <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
                       {trade.tradeTime ? timeAgo(trade.tradeTime) : "—"}
                     </td>
