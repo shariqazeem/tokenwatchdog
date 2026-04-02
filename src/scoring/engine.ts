@@ -382,11 +382,33 @@ function scoreUniswapPresence(uniswap: UniswapAnalysisResult | undefined): RiskF
     };
   }
 
+  let score = uniswap.riskScore;
+  let detail = uniswap.riskDetail;
+
+  // V4 Hook Permission Risk Escalation
+  // The uniswap.riskScore already incorporates hook analysis from the scanner,
+  // but the scoring engine applies additional penalties for V4 hook dangers
+  // to ensure they surface prominently in the overall risk report.
+  if (uniswap.v4HookAnalysis) {
+    const hookScan = uniswap.v4HookAnalysis;
+
+    if (hookScan.hasNoOpRugVector) {
+      // NoOp rug-pull vector is the most dangerous V4 hook permission.
+      // Escalate to at least 90 — this is a near-certain rug mechanism.
+      score = Math.max(score, 90);
+      detail += ". V4 HOOK CRITICAL: NoOp rug-pull vector (BEFORE_SWAP_RETURNS_DELTA) detected — hook can steal all swap input tokens";
+    } else if (hookScan.dangerousHookCount > 0) {
+      // Hooks with HIGH risk permissions warrant significant penalty
+      score = Math.max(score, 55 + hookScan.dangerousHookCount * 10);
+      detail += `. V4 hooks: ${hookScan.dangerousHookCount} hook(s) with dangerous permissions`;
+    }
+  }
+
   return {
     name: "Uniswap Presence",
-    score: uniswap.riskScore,
+    score: Math.min(score, 100),
     weight: WEIGHTS.uniswapPresence,
-    detail: uniswap.riskDetail,
+    detail,
   };
 }
 

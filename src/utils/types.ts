@@ -100,6 +100,20 @@ export interface QuoteResult {
 
 // ── Uniswap Analysis ──
 
+/** V4 hook permission analysis summary (passed through from scanner) */
+export interface V4HookAnalysisSummary {
+  /** Number of V4 pools analyzed */
+  v4PoolsAnalyzed: number;
+  /** Number of hooks with dangerous permissions (HIGH or CRITICAL) */
+  dangerousHookCount: number;
+  /** Whether any hook has the NoOp rug-pull vector (BEFORE_SWAP_RETURNS_DELTA) */
+  hasNoOpRugVector: boolean;
+  /** Highest risk score across all analyzed hooks (0-100) */
+  worstHookRiskScore: number;
+  /** Human-readable summary of V4 hook findings */
+  summary: string;
+}
+
 export interface UniswapAnalysisResult {
   hasUniswapPool: boolean;
   poolCount: number;
@@ -107,6 +121,8 @@ export interface UniswapAnalysisResult {
   totalVolume24h: number;
   bestVersion: string;        // "v2" | "v3" | "v4" | "none"
   quoteUsesUniswapRouting: boolean;
+  /** V4 hook security analysis (present only when V4 pools are found) */
+  v4HookAnalysis?: V4HookAnalysisSummary;
   riskScore: number;          // 0-100
   riskDetail: string;
 }

@@ -82,6 +82,17 @@ export async function scanToken(address: string, chain: string): Promise<RiskRep
       totalVolume24h: uniswap.totalVolume24h,
       bestVersion: uniswap.bestVersion,
       quoteUsesUniswapRouting: uniswap.quoteUsesUniswapRouting,
+      v4HookAnalysis: uniswap.v4HookAnalysis ? {
+        v4PoolsAnalyzed: uniswap.v4HookAnalysis.v4PoolsAnalyzed,
+        dangerousHookCount: uniswap.v4HookAnalysis.hooks.filter(
+          (h) => h.dangerousPermissions.length > 0,
+        ).length,
+        hasNoOpRugVector: uniswap.v4HookAnalysis.hooks.some(
+          (h) => h.hasNoOpRugVector,
+        ),
+        worstHookRiskScore: uniswap.v4HookAnalysis.worstHookRiskScore,
+        summary: uniswap.v4HookAnalysis.summary,
+      } : undefined,
       riskScore: uniswap.riskScore,
       riskDetail: uniswap.riskDetail,
     },
