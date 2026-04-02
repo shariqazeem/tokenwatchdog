@@ -1,0 +1,29 @@
+{
+  "name": "token-watchdog",
+  "version": "1.0.0",
+  "description": "Reusable OnchainOS skill that protects agents and humans from rug pulls on X Layer — composite risk analysis + safe swap execution",
+  "main": "dist/index.js",
+  "bin": {
+    "token-watchdog": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "scan": "tsx src/index.ts scan",
+    "watch": "tsx src/index.ts watch",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": ["okx", "xlayer", "onchainos", "rug-detection", "token-safety", "dex", "uniswap"],
+  "author": "TokenWatchdog",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
