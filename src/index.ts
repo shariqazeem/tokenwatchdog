@@ -254,4 +254,82 @@ program
     setInterval(tick, intervalMs);
   });
 
+program
+  .command("guard")
+  .description("Autonomous portfolio guardian — monitors wallet and panic-sells on risk spikes")
+  .option("-w, --wallet <wallet>", "Wallet address to guard (required)")
+  .option("-c, --chain <chain>", "Chain", DEFAULT_CHAIN)
+  .option("-i, --interval <seconds>", "Scan interval in seconds", "60")
+  .option("--spike-threshold <points>", "Risk score increase that triggers alert", "20")
+  .option("--panic-threshold <score>", "Absolute score that triggers panic sell", "70")
+  .option("--dry-run", "Simulate panic sells without executing", true)
+  .option("--live", "Execute real panic sells (use with caution)")
+  .action(async (opts: {
+    wallet?: string; chain: string; interval: string;
+    spikeThreshold: string; panicThreshold: string; dryRun: boolean; live?: boolean;
+  }) => {
+    if (!opts.wallet) {
+      console.error("Error: --wallet is required for guard mode");
+      process.exit(1);
+    }
+
+    const { PortfolioGuardian } = await import("./guardian/index.js");
+
+    const guardian = new PortfolioGuardian({
+      walletAddress: opts.wallet,
+      chain: opts.chain,
+      scanIntervalMs: parseInt(opts.interval) * 1000,
+      spikeThreshold: parseInt(opts.spikeThreshold),
+      panicSellThreshold: parseInt(opts.panicThreshold),
+      panicSellEnabled: true,
+      dryRun: !opts.live,
+    });
+
+    // Graceful shutdown
+    process.on("SIGINT", () => {
+      guardian.stop();
+      const state = guardian.getState();
+      console.log("\n📊 Guardian Session Summary:");
+      console.log(`   Spikes detected: ${state.stats.spikesDetected}`);
+      console.log(`   Panic sells triggered: ${state.stats.panicSellsTriggered}`);
+      console.log(`   Value protected: $${state.stats.totalValueProtected.toFixed(2)}`);
+      process.exit(0);
+    });
+
+    await guardian.start();
+  });
+
+program
+  .command("portfolio")
+  .description("One-shot portfolio risk scan — show risk scores for all wallet holdings")
+  .argument("<wallet>", "Wallet address to scan")
+  .option("-c, --chain <chain>", "Chain", DEFAULT_CHAIN)
+  .option("--json", "Output as JSON")
+  .action(async (wallet: string, opts: { chain: string; json?: boolean }) => {
+    const { scanPortfolio } = await import("./guardian/index.js");
+
+    console.log(`\nScanning portfolio: ${wallet} on ${opts.chain}...\n`);
+
+    const result = await scanPortfolio(wallet, opts.chain);
+
+    if (opts.json) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      if (result.holdings.length === 0) {
+        console.log("No token holdings found.");
+        return;
+      }
+
+      console.log(`Portfolio: $${result.totalValueUsd.toFixed(2)} | ${result.safeCount} safe | ${result.dangerCount} dangerous\n`);
+
+      for (const h of result.holdings) {
+        const icon = (h.riskScore ?? 0) >= 60 ? "🔴" : (h.riskScore ?? 0) >= 40 ? "🟡" : "🟢";
+        console.log(`  ${icon} ${h.tokenSymbol.padEnd(10)} $${parseFloat(h.balanceUsd).toFixed(2).padStart(10)} | Risk: ${h.riskScore ?? "?"}/${100} ${h.riskLevel}`);
+        if ((h.riskScore ?? 0) >= 60) {
+          console.log(`     ⚠️  ${h.riskSummary}`);
+        }
+      }
+    }
+  });
+
 program.parse();
