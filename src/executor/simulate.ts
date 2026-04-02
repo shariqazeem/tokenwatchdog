@@ -41,13 +41,28 @@ export async function getSwapCalldata(
   }
 
   const result = await runJson<any>(args, 60_000);
-  const data = result?.data ?? result?.tx ?? result;
+
+  // Response: { ok, data: [{ tx: { to, data, value, gas, from }, routerResult: {...} }] }
+  const dataArr = Array.isArray(result?.data) ? result.data : [result?.data ?? result];
+  const entry = dataArr[0] ?? {};
+  const tx = entry?.tx ?? entry;
+
+  if (!tx.to || !tx.data) {
+    throw new Error("Swap calldata missing 'to' or 'data' fields");
+  }
+
+  // Ensure value is hex-formatted for eth_call
+  let value = tx.value ?? "0x0";
+  if (typeof value === "number" || (typeof value === "string" && !value.startsWith("0x"))) {
+    const num = BigInt(value || 0);
+    value = "0x" + num.toString(16);
+  }
 
   return {
-    to: data.to ?? "",
-    data: data.data ?? "",
-    value: data.value ?? "0x0",
-    gas: data.gas ?? data.gasLimit ?? undefined,
+    to: tx.to,
+    data: tx.data,
+    value,
+    gas: tx.gas ? String(tx.gas) : undefined,
   };
 }
 
@@ -101,7 +116,9 @@ export async function simulateTransaction(
   };
 
   if (json.error) {
-    const reason = decodeRevertReason(json.error.data) ?? json.error.message ?? "unknown error";
+    const rawReason = decodeRevertReason(json.error.data) ?? json.error.message ?? "unknown error";
+    // Make common revert reasons human-readable
+    const reason = humanizeRevertReason(rawReason);
     return { success: false, revertReason: reason };
   }
 
@@ -138,6 +155,29 @@ function decodeRevertReason(data?: string): string | undefined {
   }
 
   return data;
+}
+
+/**
+ * Map common revert selectors and messages to human-readable explanations.
+ */
+function humanizeRevertReason(reason: string): string {
+  // Known custom error selectors from DEX routers
+  const KNOWN_SELECTORS: Record<string, string> = {
+    "0xf4059071": "Insufficient token balance — wallet needs funding before swapping",
+    "0xfb8f41b2": "Insufficient allowance — token approval needed",
+    "0xe450d38c": "ERC20 insufficient balance",
+    "0x13be252b": "Swap deadline expired",
+  };
+
+  const selector = reason.slice(0, 10).toLowerCase();
+  if (KNOWN_SELECTORS[selector]) return KNOWN_SELECTORS[selector];
+
+  // If it's just a hex string, label it
+  if (/^0x[0-9a-f]+$/i.test(reason) && reason.length <= 10) {
+    return `Transaction would revert (error ${reason}) — likely insufficient balance`;
+  }
+
+  return reason;
 }
 
 /**
