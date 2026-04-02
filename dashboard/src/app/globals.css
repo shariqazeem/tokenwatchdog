@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #fafbfc;
   --foreground: #0f172a;
-  --muted: #f8fafc;
+  --muted: #f1f5f9;
   --muted-foreground: #64748b;
   --border: #e2e8f0;
   --accent: #2563eb;
@@ -15,6 +15,10 @@
   --danger: #dc2626;
   --danger-light: #fef2f2;
   --critical: #991b1b;
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --orange-accent: #ea580c;
+  --orange-light: #fff7ed;
 }
 
 @theme inline {
@@ -35,3 +39,53 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Glassmorphism utility */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+/* Subtle gradient background */
+.bg-mesh {
+  background-image:
+    radial-gradient(at 27% 37%, rgba(234, 88, 12, 0.04) 0px, transparent 50%),
+    radial-gradient(at 97% 21%, rgba(37, 99, 235, 0.04) 0px, transparent 50%),
+    radial-gradient(at 52% 99%, rgba(22, 163, 74, 0.03) 0px, transparent 50%);
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Card hover lift */
+.card-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.card-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* Pulse dot animation */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Score reveal animation */
+@keyframes score-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+.score-reveal {
+  animation: score-in 400ms ease-out;
+}
