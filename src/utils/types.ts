@@ -163,5 +163,7 @@ export interface SafeSwapResult {
   swapTxHash?: string;
   fromAmount?: string;
   toAmount?: string;
+  simulationPassed?: boolean;
+  revertReason?: string;
   error?: string;
 }

@@ -190,32 +190,63 @@ program
   .action(async (opts: { chain: string; interval: string; threshold: string }) => {
     const intervalMs = parseInt(opts.interval) * 1000;
     const threshold = parseInt(opts.threshold);
+    const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minute cache per token
+    const scanCache = new Map<string, { report: RiskReport; timestamp: number }>();
+    let consecutiveErrors = 0;
 
     console.log(`\n👁  Token Watchdog — Watch Mode`);
-    console.log(`   Chain: ${opts.chain} | Interval: ${opts.interval}s | Safe threshold: <${threshold}\n`);
+    console.log(`   Chain: ${opts.chain} | Interval: ${opts.interval}s | Safe threshold: <${threshold}`);
+    console.log(`   Cache TTL: 5m | Retry backoff: exponential\n`);
 
     const tick = async () => {
       try {
         const tokens = await searchToken("", opts.chain);
-        // Use hot-tokens if search returns empty
         if (!tokens.length) {
           console.log(`[${new Date().toLocaleTimeString()}] No trending tokens found. Waiting...`);
           return;
         }
 
+        consecutiveErrors = 0; // Reset on successful fetch
+
         for (const t of tokens.slice(0, 5)) {
           const addr = t.tokenContractAddress;
           if (!addr) continue;
+
+          // Check cache
+          const cached = scanCache.get(addr);
+          if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+            const report = cached.report;
+            const indicator = report.overallScore < threshold ? "✅" : report.overallScore < 60 ? "⚠️" : "🚫";
+            console.log(`[${new Date().toLocaleTimeString()}] ${indicator} ${report.tokenSymbol} — Score: ${report.overallScore}/100 (${report.level}) [cached]`);
+            if (report.overallScore < threshold) {
+              console.log(`   → SAFE: ${report.summary}`);
+            }
+            continue;
+          }
+
+          // Fresh scan
           const report = await scanToken(addr, opts.chain);
+          scanCache.set(addr, { report, timestamp: Date.now() });
+
           const indicator = report.overallScore < threshold ? "✅" : report.overallScore < 60 ? "⚠️" : "🚫";
           console.log(`[${new Date().toLocaleTimeString()}] ${indicator} ${report.tokenSymbol} — Score: ${report.overallScore}/100 (${report.level})`);
           if (report.overallScore < threshold) {
             console.log(`   → SAFE: ${report.summary}`);
           }
         }
+
+        // Prune old cache entries
+        const now = Date.now();
+        for (const [key, val] of scanCache) {
+          if (now - val.timestamp > CACHE_TTL_MS * 2) scanCache.delete(key);
+        }
+
         console.log("");
       } catch (err) {
-        console.error(`[${new Date().toLocaleTimeString()}] Scan error:`, err);
+        consecutiveErrors++;
+        const backoffMs = Math.min(consecutiveErrors * 5000, 60000);
+        console.error(`[${new Date().toLocaleTimeString()}] Scan error (retry in ${backoffMs / 1000}s):`, err);
+        await new Promise((r) => setTimeout(r, backoffMs));
       }
     };
 

@@ -1,11 +1,13 @@
 import { run, runJson } from "../utils/cli.js";
 import type { SafeSwapRequest, SafeSwapResult, RiskReport } from "../utils/types.js";
 import { scanToken } from "../scanner/index.js";
+import { getSwapCalldata, simulateTransaction } from "./simulate.js";
 
 const DEFAULT_MAX_RISK = 60;
 
 /**
- * Execute a swap ONLY if the target token passes the safety threshold.
+ * Execute a swap ONLY if the target token passes the safety threshold
+ * AND on-chain simulation succeeds.
  */
 export async function safeSwap(req: SafeSwapRequest): Promise<SafeSwapResult> {
   const maxRisk = req.maxRiskScore ?? DEFAULT_MAX_RISK;
@@ -21,8 +23,30 @@ export async function safeSwap(req: SafeSwapRequest): Promise<SafeSwapResult> {
     };
   }
 
-  // Step 2: Execute swap via onchainos
+  // Step 2: Get swap calldata and simulate before executing
   try {
+    const calldata = await getSwapCalldata(
+      req.fromToken,
+      req.toToken,
+      req.amount,
+      req.chain,
+      req.wallet,
+      req.slippage,
+    );
+
+    const simulation = await simulateTransaction(calldata, req.wallet);
+
+    if (!simulation.success) {
+      return {
+        allowed: false,
+        riskReport: report,
+        simulationPassed: false,
+        revertReason: simulation.revertReason,
+        error: `Transaction simulation reverted: ${simulation.revertReason}`,
+      };
+    }
+
+    // Step 3: Simulation passed — execute the swap
     const args = [
       "swap", "execute",
       "--from", req.fromToken,
@@ -42,6 +66,7 @@ export async function safeSwap(req: SafeSwapRequest): Promise<SafeSwapResult> {
     return {
       allowed: true,
       riskReport: report,
+      simulationPassed: true,
       swapTxHash: data?.swapTxHash ?? data?.txHash ?? "",
       fromAmount: data?.fromAmount ?? req.amount,
       toAmount: data?.toAmount ?? "",
