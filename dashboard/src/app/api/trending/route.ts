@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import os from "node:os";
 import path from "node:path";
 
 const execFileAsync = promisify(execFile);
-const ONCHAINOS = path.join(process.env.HOME || "~", ".local/bin/onchainos");
+const ONCHAINOS = path.join(os.homedir(), ".local/bin/onchainos");
 const PROJECT_ROOT = path.resolve(process.cwd(), "..");
 
 export async function GET(req: NextRequest) {
